@@ -51,7 +51,7 @@ def fetch_sequence_reports(accession):
         logger.error("[NCBI - fetch_seq_reports] Unexpected JSON structure: 'reports' is not a list")
         return []
 
-    logger.error("[NCBI - fetch_seq_reports] Successfully called API")
+    logger.info("[NCBI - fetch_seq_reports] Successfully called API")
 
     # include both assembled chromosomes and their unlocalized scaffolds
     return [r for r in reports if r.get("role") in ("assembled-molecule", "unlocalized-scaffold")]

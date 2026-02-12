@@ -10,7 +10,7 @@ logger = logging.getLogger('pretextannotation_logger')
 
 def get_chromosomes(prefix: str, context: dict) -> list[dict] | None:
     """
-    Get chromosome
+    Get chromosome data for assembly
     """
     for key in ("prim_accession", "hap1_accession"):
         if key in context:

@@ -3,7 +3,7 @@
 """
 PretextAnnotate
 -----------------
-Originally written by Karen ven Niekerk (kh18)
+Originally written by Karen van Niekerk (kh18)
 
 Updated by Damon-Lee B Pointon (dp24 / DLBPointon)
     - Converted script into a Python package

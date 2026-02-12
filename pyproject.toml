@@ -1,7 +1,7 @@
 [project]
 name = "pretextannotate"
 version = "0.1.0"
-description = "A package to "
+description = "A package to annotate a pretext snapshot with size and chromosome information"
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "Damon-Lee Pointon", email = "dp24@sanger.ac.uk"}, { name = "Karen van Niekerk"}]
@@ -10,7 +10,7 @@ dependencies = [
     "pillow>=12.1.0"
 ]
 
-[package.optional-dependencies]
+[project.optional-dependencies]
 dev = [
     "ruff>=0.11.11",
 ]
