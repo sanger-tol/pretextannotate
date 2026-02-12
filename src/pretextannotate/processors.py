@@ -18,15 +18,22 @@ def get_chromosomes(prefix, context):
     logging.error(f"[Pretext Annotation] No accession in context for {prefix}")
     return None
 
-def get_raw_length(context):
+def get_raw_length(context, chroms):
     """
     Get raw length of genome
     """
-    return context.get(
+    if context.get(
         "genome_length_unrounded"
     ) or context.get(
         "hap1_genome_length_unrounded"
+    ):
+        return context.get(
+            "genome_length_unrounded"
+    ) or context.get(
+        "hap1_genome_length_unrounded"
     )
+    else:
+        return sum(chrom["length"] * 1e6 for chrom in chroms)
 
 def fits_block(tw, block_width, fraction):
     return tw <= block_width * fraction
@@ -205,7 +212,7 @@ def label_pretext_map(args):
 
     chroms: list[dict] = get_chromosomes(args.prefix, context)
 
-    raw_length = get_raw_length(context)
+    raw_length = get_raw_length(context, chroms)
 
     total_length = (raw_length / 1e6) if raw_length else None
 

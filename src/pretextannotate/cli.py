@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument("--output", help="Output PNG file", default="./")
 
     # Font Arguments
-    parser.add_argument("--font", help="Font file", default="./src/fonts/arial.ttf", type=pathlib.Path)
+    parser.add_argument("--font", help="Font file", default="./src/fonts/OpenSans-Regular.ttf", type=pathlib.Path)
     parser.add_argument("--font_size", help="Font size", default=60)
 
     # Plot Arguments
