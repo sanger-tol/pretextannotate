@@ -1,22 +1,22 @@
 import os
+import json
 import logging
 from pathlib import Path
 from pretextannotate.chromosome_extraction import extract_chromosomes_only
 from PIL import Image, ImageDraw, ImageFont
 
+logger = logging.getLogger('pretextannotation_logger')
 
 def get_chromosomes(prefix, context):
     """
     Get chromosome
     """
-    if "prim_accession" in context:
-        chroms = extract_chromosomes_only(context["prim_accession"])
-    elif "hap1_accession" in context:
-        chroms = extract_chromosomes_only(context["hap1_accession"])
-    else:
-        logging.error(f"[Pretext Annotation] No accession in context for {prefix}")
-        return None
-    return chroms
+    for key in ("prim_accession", "hap1_accession"):
+        if key in context:
+            return extract_chromosomes_only(context[key])
+
+    logging.error(f"[Pretext Annotation] No accession in context for {prefix}")
+    return None
 
 def get_raw_length(context):
     """
@@ -31,8 +31,8 @@ def get_raw_length(context):
 def fits_block(tw, block_width, fraction):
     return tw <= block_width * fraction
 
-def overlaps_prev(l, r, boxes, pad=0):
-    return any(l - pad < br and r + pad > bl for bl, br in boxes)
+def overlaps_prev(left, right, boxes, pad=0):
+    return any(left - pad < br and right + pad > bl for bl, br in boxes)
 
 def add_mbp_scale(draw, font, left, top, w, h, total_length, font_size, text_colour):
     """Add Mbp scale to bottom of pretext map with smart positioning"""
@@ -187,29 +187,31 @@ def convert_png_to_tif_and_gif(png_path, dpi=(300, 300), max_width=None):
     gif_path = f"{base}.gif"
     img.save(gif_path, format="GIF")
 
-    logging.info(f"Converted {png_path} → {tif_path}, {gif_path}")
+    logging.info(f"[Pretext Annotation] Converted {png_path} → {tif_path}, {gif_path}")
     return tif_path, gif_path
 
 def label_pretext_map(args):
-    output_dir = Path(args.output_dir)
+    output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    output_file_path = args.output_dir + f"/{args.prefix}_annotated_pretext.png"
+    output_file_path = args.output + f"/{args.prefix}_annotated_pretext.png"
 
-    logging.info(f"[Pretext Annotation] Input Snapshot Image is {args.input}")
+    context = json.loads(args.context_dict)
+
+    logging.info(f"[Pretext Annotation] Input Snapshot Image is {args.pretext_file}")
     logging.info(f"[Pretext Annotation] Output will be saved at {output_file_path}")
 
-    logging.info(f"[Pretext Annotation] Starting Pretext Annotation Process")
+    logging.info("[Pretext Annotation] Starting Pretext Annotation Process")
 
-    chroms: list[dict] = get_chromosomes(args.prefix, args.context)
+    chroms: list[dict] = get_chromosomes(args.prefix, context)
 
-    raw_length = get_raw_length(args.context)
+    raw_length = get_raw_length(context)
 
     total_length = (raw_length / 1e6) if raw_length else None
 
     logging.debug(f"[Pretext Annotation] total_length={total_length} Mb; chromosomes={len(chroms)}")
 
-    image = Image.open(args.input)
+    image = Image.open(args.pretext_file)
     width, height = image.size
     font = ImageFont.truetype(args.font, args.font_size)
 
@@ -241,7 +243,7 @@ def label_pretext_map(args):
     else:
         font_size = min(max_font_size, font_size + 20)
 
-    logging.info(f"[Pretext Annotate] Adjusted font size: {font_size} for {chrom_count} chromosomes")
+    logging.info(f"[Pretext Annotation] Adjusted font size: {font_size} for {chrom_count} chromosomes")
 
     top = int(font_size * 2.5)
     left = int(font_size * 7)
@@ -328,11 +330,10 @@ def label_pretext_map(args):
         add_mbp_scale(draw, font, left, top, width, height, total_length, font_size, args.text_colour)
 
     # 4) save + convert
-    out_png = output_dir / "Fig_3_Pretext.png"
-    canvas.save(out_png)
-    logging.info(f"[Pretext] Saved labelled PNG → {out_png}")
+    canvas.save(output_file_path)
+    logging.info(f"[Pretext Annotation] Saved labelled PNG → {output_file_path}")
 
-    tif, gif = convert_png_to_tif_and_gif(str(out_png), dpi=(300, 300), max_width=1200)
-    logging.info(f"[Pretext] Converted to TIFF & GIF → {tif}, {gif}")
+    tif, gif = convert_png_to_tif_and_gif(str(output_file_path), dpi=(300, 300), max_width=1200)
+    logging.info(f"[Pretext Annotation] Converted to TIFF & GIF → {tif}, {gif}")
 
-    return Path(out_png), Path(tif), Path(gif)
+    return Path(output_file_path), Path(tif), Path(gif)

@@ -3,8 +3,10 @@
 
 import os
 import re
+import logging
 import requests
-from Bio import Entrez
+
+logger = logging.getLogger('pretextannotation_logger')
 
 # Setup Entrez credentials
 entrez_email = os.getenv('ENTREZ_EMAIL', 'default_email')
