@@ -18,4 +18,5 @@ jobs:
             - name: Lint with Ruff
               uses: astral-sh/ruff-action@v3
               with:
+                  src: "./src"
                   version: "0.11.11"
