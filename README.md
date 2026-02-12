@@ -5,6 +5,9 @@ PretextAnnotate is a script originally written by Karen van Niekerk (Sanger GRIT
 `/src/fonts/arial.ttf` - Arial font file used for text rendering.
 Font file is taken from https://github.com/kavin808/arial.ttf
 
+`/src/fonts/OpenSans-Regular.ttf` - Open Sans font file used for text rendering.
+Font file is taken from https://fonts.google.com/specimen/Open+Sans/ and is licensed under [Open Font License](https://openfontlicense.org/).
+
 `original_scripts` - Contains the original scripts used in this project, this is simply for archiving and reference purposes.
 
 ## Installation
