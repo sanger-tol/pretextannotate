@@ -1,13 +1,14 @@
 import os
+import sys
 import json
 import logging
 from pathlib import Path
-from pretextannotate.chromosome_extraction import extract_chromosomes_only
 from PIL import Image, ImageDraw, ImageFont
+from pretextannotate.chromosome_extraction import extract_chromosomes_only
 
 logger = logging.getLogger('pretextannotation_logger')
 
-def get_chromosomes(prefix, context):
+def get_chromosomes(prefix: str, context: dict) -> list[dict] | None:
     """
     Get chromosome
     """
@@ -18,72 +19,74 @@ def get_chromosomes(prefix, context):
     logging.error(f"[Pretext Annotation] No accession in context for {prefix}")
     return None
 
-def get_raw_length(context, chroms):
+def get_raw_length(context: dict, chroms: list[dict]) -> int | None:
     """
     Get raw length of genome
     """
-    if context.get(
-        "genome_length_unrounded"
-    ) or context.get(
-        "hap1_genome_length_unrounded"
-    ):
-        return context.get(
-            "genome_length_unrounded"
-    ) or context.get(
-        "hap1_genome_length_unrounded"
-    )
+    if context.get("genome_length_unrounded") or context.get("hap1_genome_length_unrounded"):
+        return context.get("genome_length_unrounded") or context.get("hap1_genome_length_unrounded")
     else:
+        logging.critical("""
+    [Pretext Annotation] GENOME LENGTH NOT PROVIDED ON CLI
+        - Keep in mind that the fall back method sums the lengths of chromosomes from the API
+        - THIS SUM DOES NOT INCLUDE unlocs, if there are many then the plot may look off.
+    """)
         return sum(chrom["length"] * 1e6 for chrom in chroms)
 
-def fits_block(tw, block_width, fraction):
+def fits_block(tw: float, block_width: int, fraction: float) -> bool:
     return tw <= block_width * fraction
 
-def overlaps_prev(left, right, boxes, pad=0):
+def overlaps_prev(left: int, right: int, boxes, pad=0) -> bool:
     return any(left - pad < br and right + pad > bl for bl, br in boxes)
 
 def add_mbp_scale(draw, font, left, top, w, h, total_length, font_size, text_colour):
     """Add Mbp scale to bottom of pretext map with smart positioning"""
     # Calculate reasonable tick intervals based on total genome size
-    if total_length <= 50:
-        tick_interval = 10  # Every 10 Mbp
-    elif total_length <= 200:
-        tick_interval = 25  # Every 25 Mbp
-    elif total_length <= 500:
-        tick_interval = 50  # Every 50 Mbp
-    elif total_length <= 1000:
-        tick_interval = 100  # Every 100 Mbp
-    elif total_length <= 2000:
-        tick_interval = 200  # Every 200 Mbp
-    else:
-        tick_interval = 500  # Every 500 Mbp for very large genomes
+    match True:
+        case _ if total_length <= 50:
+            tick_interval = 10  # Every 10 Mbp
+        case _ if total_length <= 200:
+            tick_interval = 25  # Every 25 Mbp
+        case _ if total_length <= 500:
+            tick_interval = 50  # Every 50 Mbp
+        case _ if total_length <= 1000:
+            tick_interval = 100  # Every 100 Mbp
+        case _ if total_length <= 2000:
+            tick_interval = 200  # Every 200 Mbp
+        case _:
+            tick_interval = 500  # Every 500 Mbp for very large genomes
 
     # Check for label crowding and adjust interval
-    estimated_label_count = int(total_length / tick_interval) + 1
-    avg_space_per_label = w / estimated_label_count if estimated_label_count > 0 else w
+    estimated_label_count: int = int(total_length / tick_interval) + 1
+    avg_space_per_label: int = w / estimated_label_count if estimated_label_count > 0 else w
     sample_bbox = font.getbbox("1000")
-    typical_label_width = sample_bbox[2] - sample_bbox[0]
-    min_space_needed = typical_label_width * 1.5  # 50% padding between labels
+    typical_label_width: int = sample_bbox[2] - sample_bbox[0]
+    min_space_needed: int = typical_label_width * 1.5  # 50% padding between labels
 
     if avg_space_per_label < min_space_needed:
-        if tick_interval == 10:
-            tick_interval = 25
-        elif tick_interval == 25:
-            tick_interval = 50
-        elif tick_interval == 50:
-            tick_interval = 100
-        elif tick_interval == 100:
-            tick_interval = 200
-        elif tick_interval == 200:
-            tick_interval = 500
-        elif tick_interval == 500:
-            tick_interval = 1000
+        match tick_interval:
+            case 10:
+                tick_interval = 25
+            case 25:
+                tick_interval = 50
+            case 50:
+                tick_interval = 100
+            case 100:
+                tick_interval = 200
+            case 200:
+                tick_interval = 500
+            case 500:
+                tick_interval = 1000
+            case _:
+                logging.error("[Add MBP Scale] Tick interval larger than 500 MBP")
+                sys.exit("Tick interval larger than 500 MBP")
 
         logging.info(
             f"[Mbp Scale] Adjusted interval from original to {tick_interval} Mbp to prevent label crowding"
         )
 
     # Draw scale line
-    scale_y = top + h + int(font_size * 0.5)
+    scale_y: int = top + h + int(font_size * 0.5)
     draw.line([(left, scale_y), (left + w, scale_y)], fill=text_colour, width=2)
 
     # Pre-calculate the last tick that would get a label
@@ -93,10 +96,10 @@ def add_mbp_scale(draw, font, left, top, w, h, total_length, font_size, text_col
 
     while current_pos <= total_length:
         if tick_count % (1 if tick_interval >= 50 else 2) == 0:
-            x_pos = left + (current_pos / total_length) * w
+            x_pos: int = left + (current_pos / total_length) * w
             label = f"{int(current_pos)}"
             bbox = font.getbbox(label)
-            label_width = bbox[2] - bbox[0]
+            label_width: int = bbox[2] - bbox[0]
             last_labeled_tick = (x_pos, label, label_width, current_pos)
 
         current_pos += tick_interval
@@ -105,12 +108,12 @@ def add_mbp_scale(draw, font, left, top, w, h, total_length, font_size, text_col
     # Calculate "Mbp" unit label dimensions
     unit_label = "Mbp"
     unit_bbox = font.getbbox(unit_label)
-    unit_width = unit_bbox[2] - unit_bbox[0]
+    unit_width: int = unit_bbox[2] - unit_bbox[0]
 
     # Determine optimal "Mbp" position
     min_gap = 15  # Minimum gap between labels
-    right_margin_start = left + w  # End of the actual image
-    ideal_mbp_x = right_margin_start + 15  # 15 pixels into the right margin
+    right_margin_start: int = left + w  # End of the actual image
+    ideal_mbp_x: int = right_margin_start + 15  # 15 pixels into the right margin
 
     skip_last_label = False
     final_mbp_x = ideal_mbp_x
@@ -169,7 +172,7 @@ def add_mbp_scale(draw, font, left, top, w, h, total_length, font_size, text_col
         fill=text_colour,
     )
 
-def convert_png_to_tif_and_gif(png_path, dpi=(300, 300), max_width=None):
+def convert_png_to_tif_and_gif(png_path: str, dpi=(300, 300), max_width=None):
     """
     Given /…/Fig_N.png, writes:
       • /…/Fig_N.tif  at `dpi`
@@ -197,116 +200,98 @@ def convert_png_to_tif_and_gif(png_path, dpi=(300, 300), max_width=None):
     logging.info(f"[Pretext Annotation] Converted {png_path} → {tif_path}, {gif_path}")
     return tif_path, gif_path
 
-def label_pretext_map(args):
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
+def parse_context(context_dict_str: str) -> dict:
+    try:
+        return json.loads(context_dict_str)
+    except Exception as e:
+        logging.error(f"[Pretext Annotation] Failed to parse context_dict: {e}")
+        return {}
 
-    output_file_path = args.output + f"/{args.prefix}_annotated_pretext.png"
-
-    context = json.loads(args.context_dict)
-
-    logging.info(f"[Pretext Annotation] Input Snapshot Image is {args.pretext_file}")
-    logging.info(f"[Pretext Annotation] Output will be saved at {output_file_path}")
-
-    logging.info("[Pretext Annotation] Starting Pretext Annotation Process")
-
-    chroms: list[dict] = get_chromosomes(args.prefix, context)
-
-    raw_length = get_raw_length(context, chroms)
-
-    total_length = (raw_length / 1e6) if raw_length else None
-
-    logging.debug(f"[Pretext Annotation] total_length={total_length} Mb; chromosomes={len(chroms)}")
-
-    image = Image.open(args.pretext_file)
-    width, height = image.size
-    font = ImageFont.truetype(args.font, args.font_size)
-
-    dot_width = font.getbbox(".")[2] - font.getbbox(".")[0]
-
-    max_length = max(c["length"] for c in chroms)
-
+def compute_chromosomes(prefix: str, context: dict, exclude: list[str], min_fraction: float) -> list[dict]:
+    chroms = get_chromosomes(prefix, context)
+    if chroms is None:
+        raise SystemExit("Failed to retrieve chromosomes")
+    max_length = max(c["length"] for c in chroms) if chroms else 0
     filtered = [
-        c
-        for c in chroms
-        if c["molecule"] not in (args.exclude_molecules or [])
-        and c["length"] >= args.min_fraction * max_length
+        c for c in chroms
+        if c["molecule"] not in (exclude or [])
+        and c["length"] >= min_fraction * max_length
     ]
+    return sorted(filtered, key=lambda x: x["length"], reverse=True)
 
-    sorted_chroms = sorted(filtered, key=lambda x: x["length"], reverse=True)
-
-    chrom_count = len(sorted_chroms)
-
-    max_font_size = 90
-
-    font_size = args.font_size
-
+def choose_font_size(base_size: int, chrom_count: int, max_font_size: int = 90) -> int:
     if chrom_count > 25:
-        font_size = font_size
-    elif chrom_count > 20:
-        font_size = min(max_font_size, font_size + 5)
-    elif chrom_count > 10:
-        font_size = min(max_font_size, font_size + 10)
-    else:
-        font_size = min(max_font_size, font_size + 20)
+        return base_size
+    if chrom_count > 20:
+        return min(max_font_size, base_size + 5)
+    if chrom_count > 10:
+        return min(max_font_size, base_size + 10)
+    return min(max_font_size, base_size + 20)
 
-    logging.info(f"[Pretext Annotation] Adjusted font size: {font_size} for {chrom_count} chromosomes")
+def build_canvas(image_path: str, font_path: str, font_size: int, background_colour: str):
+    image = Image.open(image_path)
+    width, height = image.size
+    font = ImageFont.truetype(font_path, font_size)
 
     top = int(font_size * 2.5)
     left = int(font_size * 7)
     bottom = int(font_size * 2.5)
     right = int(font_size * 2.5)
 
-    canvas = Image.new("RGB", (width + left + right, height + top + bottom), args.background_colour)
+    canvas = Image.new("RGB", (width + left + right, height + top + bottom), background_colour)
     canvas.paste(image, (left, top))
     draw = ImageDraw.Draw(canvas)
+    return canvas, draw, font, width, height, left, top
 
-    acc = 0
-    x_positions = []
+def compute_positions(sorted_chroms: list[dict], width: int, height: int, total_length: float | None):
     total = total_length or sum(c["length"] for c in sorted_chroms)
+
+    acc, x_positions = 0, []
     for c in sorted_chroms:
         block = (c["length"] / total) * width
         x_positions.append(acc + block / 2)
         acc += block
 
-    # top labels
-    drawn_boxes = []
-    for i, c in enumerate(sorted_chroms):
-        label = str(c["molecule"])
-        block = (c["length"] / total) * width
-        bbox = font.getbbox(label)
-        tw = bbox[2] - bbox[0]
-
-        ok = fits_block(tw, block, args.max_fraction)
-        if ok:
-            x_left = left + x_positions[i] - tw / 2
-            x_right = x_left + tw
-            if overlaps_prev(x_left, x_right, drawn_boxes):
-                ok = False
-
-        if ok:
-            y = int(font_size * 0.6)
-            draw.text((x_left, y), label, font=font, fill=args.text_colour)
-            drawn_boxes.append((x_left, x_right))
-        else:
-            x = left + x_positions[i] - dot_width / 2
-            y = int(font_size * 0.4)
-            draw.text((x, y), ".", font=font, fill=args.text_colour)
-
-    y_positions = []
-    acc_h = 0
+    acc_h, y_positions = 0, []
     for c in sorted_chroms:
         block_h = (c["length"] / total) * height
         y_positions.append(acc_h + block_h / 2)
         acc_h += block_h
 
+    return total, x_positions, y_positions
+
+def draw_top_labels_with_positions(draw, font, sorted_chroms, total, left, font_size, text_colour, dot_width, max_fraction, x_positions, width):
+    drawn_boxes = []
+    for i, c in enumerate(sorted_chroms):
+        label = str(c["molecule"])
+        block: int = (c["length"] / total) * width
+        bbox = font.getbbox(label)
+        tw: int = bbox[2] - bbox[0]
+
+        ok: bool = fits_block(tw, block, max_fraction)
+        if ok:
+            x_left: int = left + x_positions[i] - tw / 2
+            x_right: int = x_left + tw
+            if overlaps_prev(x_left, x_right, drawn_boxes):
+                ok = False
+
+        if ok:
+            y = int(font_size * 0.6)
+            draw.text((x_left, y), label, font=font, fill=text_colour)
+            drawn_boxes.append((x_left, x_right))
+        else:
+            x: int = left + x_positions[i] - dot_width / 2
+            y = int(font_size * 0.4)
+            draw.text((x, y), ".", font=font, fill=text_colour)
+
+def overlaps_prev_y(t, b, boxes, pad=0):
+    return any(t - pad < bb and b + pad > tt for tt, bb in boxes)
+
+def draw_left_labels(draw, font, sorted_chroms, total, left, top, height, font_size, text_colour, dot_width, vertical_label_field, y_positions, max_fraction):
     drawn_y_boxes: list[tuple[float, float]] = []
 
-    def overlaps_prev_y(t, b, boxes, pad=0):
-        return any(t - pad < bb and b + pad > tt for tt, bb in boxes)
-
     for i, c in enumerate(sorted_chroms):
-        lbl = str(c.get(args.vertical_label_field) or c.get("molecule") or "?")
+        lbl = str(c.get(vertical_label_field) or c.get("molecule") or "?")
 
         lb = font.getbbox(lbl)
         th = lb[3] - lb[1]
@@ -317,26 +302,55 @@ def label_pretext_map(args):
         y_top = int(centre_y - th / 2 - font_size * 0.4)
         y_bot = y_top + th
 
-        ok = block_h >= th * args.max_fraction
+        ok = block_h >= th * max_fraction
         if ok and overlaps_prev_y(y_top, y_bot, drawn_y_boxes, pad=5):
             ok = False
 
         if ok:
-            x = left - tw - int(font_size * 0.4)
-            draw.text((x, y_top), lbl, font=font, fill=args.text_colour)
+            x: int = left - tw - int(font_size * 0.4)
+            draw.text((x, y_top), lbl, font=font, fill=text_colour)
             drawn_y_boxes.append((y_top, y_bot))
         else:
             dot_bbox = font.getbbox(".")
-            dot_top = dot_bbox[1]
-            dot_height = dot_bbox[3] - dot_bbox[1]
-            x = left - dot_width - int(font_size * 0.4)
+            dot_top: int = dot_bbox[1]
+            dot_height: int = dot_bbox[3] - dot_bbox[1]
+            x: int = left - dot_width - int(font_size * 0.4)
             y_dot = int(centre_y - (dot_height / 2) - dot_top)
-            draw.text((x, y_dot), ".", font=font, fill=args.text_colour)
+            draw.text((x, y_dot), ".", font=font, fill=text_colour)
+
+def label_pretext_map(args) -> tuple[Path, Path, Path]:
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_file_path: str = str(output_dir / f"{args.prefix}_annotated_pretext.png")
+
+    context = parse_context(args.context_dict)
+
+    logging.info(f"[Pretext Annotation] Input Snapshot Image is {args.pretext_file}")
+    logging.info(f"[Pretext Annotation] Output will be saved at {output_file_path}")
+    logging.info("[Pretext Annotation] Starting Pretext Annotation Process")
+
+    sorted_chroms = compute_chromosomes(args.prefix, context, args.exclude_molecules, args.min_fraction)
+    chrom_count = len(sorted_chroms)
+
+    font_size = choose_font_size(args.font_size, chrom_count)
+    logging.info(f"[Pretext Annotation] Adjusted font size: {font_size} for {chrom_count} chromosomes")
+
+    canvas, draw, font, width, height, left, top = build_canvas(args.pretext_file, args.font, font_size, args.background_colour)
+
+    dot_width: int = font.getbbox(".")[2] - font.getbbox(".")[0]
+    raw_length = get_raw_length(context, sorted_chroms)
+    total_length = (raw_length / 1e6) if raw_length else None
+
+    logging.debug(f"[Pretext Annotation] total_length={total_length} Mb; chromosomes={chrom_count}")
+
+    total, x_positions, y_positions = compute_positions(sorted_chroms, width, height, total_length)
+
+    draw_top_labels_with_positions(draw, font, sorted_chroms, total, left, font_size, args.text_colour, dot_width, args.max_fraction, x_positions, width)
+    draw_left_labels(draw, font, sorted_chroms, total, left, top, height, font_size, args.text_colour, dot_width, args.vertical_label_field, y_positions, args.max_fraction)
 
     if total_length:
         add_mbp_scale(draw, font, left, top, width, height, total_length, font_size, args.text_colour)
 
-    # 4) save + convert
     canvas.save(output_file_path)
     logging.info(f"[Pretext Annotation] Saved labelled PNG → {output_file_path}")
 
