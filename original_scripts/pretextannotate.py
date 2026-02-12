@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 
 """
+PretextAnnotate
+-----------------
+Originally written by Karen ven Niekerk (kh18)
+
+Updated by Damon-Lee B Pointon (dp24 / DLBPointon)
+    - Converted script into a Python package
+-----------------
 Minimal, shareable utilities for labeling Pretext maps.
 Extracted from scripts/process_images.py with non-Pretext functions removed.
 

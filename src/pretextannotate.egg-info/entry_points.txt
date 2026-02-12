@@ -1,0 +1,2 @@
+[console_scripts]
+pretextannotate = pretextannotate.cli:main
