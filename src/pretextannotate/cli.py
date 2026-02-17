@@ -8,7 +8,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler("pretextannotation.log")  # logs to file
+        logging.FileHandler("pretextannotation.log"),  # logs to file
+        logging.StreamHandler()  # logs to console
     ]
 )
 logger = logging.getLogger('pretextannotation_logger')
@@ -25,9 +26,9 @@ def parse_args():
 
     # Font Arguments
     data_path = os.path.join(os.path.dirname(__file__), 'fonts', 'OpenSans-Regular.ttf')
-    logging.info(f"[Pretext Annotation] Found font file at {data_path}")
+    logger.info(f"[Pretext Annotation] Found font file at {data_path}")
     parser.add_argument("--font", help="Font file", default=data_path, type=pathlib.Path)
-    parser.add_argument("--font_size", help="Font size", default=60)
+    parser.add_argument("--font_size", help="Font size", default=60, type=int)
 
     # Plot Arguments
     parser.add_argument("--exclude_molecules", help="List of molecules to exclude", default=[], type=list)
@@ -45,10 +46,10 @@ def parse_args():
 
 def main():
 
-    logging.info("[Pretext Annotation] Starting Pretext Annotation")
+    logger.info("[Pretext Annotation] Starting Pretext Annotation")
 
     args = parse_args()
 
-    logging.info(f"[Pretext Annotation] PretextSnapshot: {args.pretext_file} | WITH | context_dict: {args.context_dict}")
+    logger.info(f"[Pretext Annotation] PretextSnapshot: {args.pretext_file} | WITH | context_dict: {args.context_dict}")
 
     label_pretext_map(args)

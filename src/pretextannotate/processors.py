@@ -16,7 +16,7 @@ def get_chromosomes(prefix: str, context: dict) -> list[dict] | None:
         if key in context:
             return extract_chromosomes_only(context[key])
 
-    logging.error(f"[Pretext Annotation] No accession in context for {prefix}")
+    logger.error(f"[Pretext Annotation] No accession in context for {prefix}")
     return None
 
 def get_raw_length(context: dict, chroms: list[dict]) -> int | None:
@@ -26,14 +26,14 @@ def get_raw_length(context: dict, chroms: list[dict]) -> int | None:
     if context.get("genome_length_unrounded") or context.get("hap1_genome_length_unrounded"):
         return context.get("genome_length_unrounded") or context.get("hap1_genome_length_unrounded")
     else:
-        logging.critical("""
+        logger.critical("""
     [Pretext Annotation] GENOME LENGTH NOT PROVIDED ON CLI
         - Keep in mind that the fall back method sums the lengths of chromosomes from the API
         - THIS SUM DOES NOT INCLUDE unlocs, if there are many then the plot may look off.
     """)
         return sum(chrom["length"] * 1e6 for chrom in chroms)
 
-def fits_block(tw: float, block_width: int, fraction: float) -> bool:
+def fits_block(tw: float, block_width: float, fraction: float) -> bool:
     return tw <= block_width * fraction
 
 def overlaps_prev(left: int, right: int, boxes, pad=0) -> bool:
@@ -78,10 +78,10 @@ def add_mbp_scale(draw, font, left, top, w, h, total_length, font_size, text_col
             case 500:
                 tick_interval = 1000
             case _:
-                logging.error("[Add MBP Scale] Tick interval larger than 500 MBP")
+                logger.error("[Add Mbp Scale] Tick interval larger than 500 MBP")
                 sys.exit("Tick interval larger than 500 MBP")
 
-        logging.info(
+        logger.info(
             f"[Mbp Scale] Adjusted interval from original to {tick_interval} Mbp to prevent label crowding"
         )
 
@@ -197,14 +197,14 @@ def convert_png_to_tif_and_gif(png_path: str, dpi=(300, 300), max_width=None):
     gif_path = f"{base}.gif"
     img.save(gif_path, format="GIF")
 
-    logging.info(f"[Pretext Annotation] Converted {png_path} → {tif_path}, {gif_path}")
+    logger.info(f"[Pretext Annotation] Converted {png_path} → {tif_path}, {gif_path}")
     return tif_path, gif_path
 
 def parse_context(context_dict_str: str) -> dict:
     try:
         return json.loads(context_dict_str)
     except Exception as e:
-        logging.error(f"[Pretext Annotation] Failed to parse context_dict: {e}")
+        logger.error(f"[Pretext Annotation] Failed to parse context_dict: {e}")
         return {}
 
 def compute_chromosomes(prefix: str, context: dict, exclude: list[str], min_fraction: float) -> list[dict]:
@@ -325,15 +325,15 @@ def label_pretext_map(args) -> tuple[Path, Path, Path]:
 
     context = parse_context(args.context_dict)
 
-    logging.info(f"[Pretext Annotation] Input Snapshot Image is {args.pretext_file}")
-    logging.info(f"[Pretext Annotation] Output will be saved at {output_file_path}")
-    logging.info("[Pretext Annotation] Starting Pretext Annotation Process")
+    logger.info(f"[Pretext Annotation] Input Snapshot Image is {args.pretext_file}")
+    logger.info(f"[Pretext Annotation] Output will be saved at {output_file_path}")
+    logger.info("[Pretext Annotation] Starting Pretext Annotation Process")
 
     sorted_chroms = compute_chromosomes(args.prefix, context, args.exclude_molecules, args.min_fraction)
     chrom_count = len(sorted_chroms)
 
     font_size = choose_font_size(args.font_size, chrom_count)
-    logging.info(f"[Pretext Annotation] Adjusted font size: {font_size} for {chrom_count} chromosomes")
+    logger.info(f"[Pretext Annotation] Adjusted font size: {font_size} for {chrom_count} chromosomes")
 
     canvas, draw, font, width, height, left, top = build_canvas(args.pretext_file, args.font, font_size, args.background_colour)
 
@@ -341,7 +341,7 @@ def label_pretext_map(args) -> tuple[Path, Path, Path]:
     raw_length = get_raw_length(context, sorted_chroms)
     total_length = (raw_length / 1e6) if raw_length else None
 
-    logging.debug(f"[Pretext Annotation] total_length={total_length} Mb; chromosomes={chrom_count}")
+    logger.debug(f"[Pretext Annotation] total_length={total_length} Mb; chromosomes={chrom_count}")
 
     total, x_positions, y_positions = compute_positions(sorted_chroms, width, height, total_length)
 
@@ -352,9 +352,9 @@ def label_pretext_map(args) -> tuple[Path, Path, Path]:
         add_mbp_scale(draw, font, left, top, width, height, total_length, font_size, args.text_colour)
 
     canvas.save(output_file_path)
-    logging.info(f"[Pretext Annotation] Saved labelled PNG → {output_file_path}")
+    logger.info(f"[Pretext Annotation] Saved labelled PNG → {output_file_path}")
 
     tif, gif = convert_png_to_tif_and_gif(str(output_file_path), dpi=(300, 300), max_width=1200)
-    logging.info(f"[Pretext Annotation] Converted to TIFF & GIF → {tif}, {gif}")
+    logger.info(f"[Pretext Annotation] Converted to TIFF & GIF → {tif}, {gif}")
 
     return Path(output_file_path), Path(tif), Path(gif)

@@ -1,14 +1,8 @@
-import os
 import re
 import logging
 from pretextannotate.fetch_reports import fetch_sequence_reports
 
 logger = logging.getLogger('pretextannotation_logger')
-
-# Setup Entrez credentials
-entrez_email = os.getenv('ENTREZ_EMAIL', 'default_email')
-entrez_api_key = os.getenv('ENTREZ_API_KEY', 'default_api_key')
-
 
 def custom_sort_order(molecule):
     """
