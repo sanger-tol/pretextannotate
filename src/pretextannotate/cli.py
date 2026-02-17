@@ -39,6 +39,8 @@ def parse_args():
     parser.add_argument("--min_fraction", help="Minimum Fraction of scaffolds to include", default=0.01)
     parser.add_argument("--max_fraction", help="Maximum Fraction of scaffolds to include", default=0.97)
 
+    parser.add_argument("-v", "--versions", help="Return the version of the tool", action="version", version="%(prog)s: 1.0.0")
+
     return parser.parse_args()
 
 def main():
