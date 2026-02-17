@@ -1,3 +1,4 @@
+import os
 import logging
 import argparse
 import pathlib
@@ -23,7 +24,9 @@ def parse_args():
     parser.add_argument("--output", help="Output PNG file", default="./")
 
     # Font Arguments
-    parser.add_argument("--font", help="Font file", default="./src/fonts/OpenSans-Regular.ttf", type=pathlib.Path)
+    data_path = os.path.join(os.path.dirname(__file__), 'fonts', 'OpenSans-Regular.ttf')
+    logging.info(f"[Pretext Annotation] Found font file at {data_path}")
+    parser.add_argument("--font", help="Font file", default=data_path, type=pathlib.Path)
     parser.add_argument("--font_size", help="Font size", default=60)
 
     # Plot Arguments
@@ -39,9 +42,11 @@ def parse_args():
     return parser.parse_args()
 
 def main():
-    args = parse_args()
 
     logging.info("[Pretext Annotation] Starting Pretext Annotation")
+
+    args = parse_args()
+
     logging.info(f"[Pretext Annotation] PretextSnapshot: {args.pretext_file} | WITH | context_dict: {args.context_dict}")
 
     label_pretext_map(args)
