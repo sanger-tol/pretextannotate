@@ -31,14 +31,14 @@ def parse_args():
     parser.add_argument("--font_size", help="Font size", default=60, type=int)
 
     # Plot Arguments
-    parser.add_argument("--exclude_molecules", help="List of molecules to exclude", default=[], type=list)
+    parser.add_argument("--exclude_molecules", help="List of molecules to exclude", nargs='+')
     parser.add_argument("--background_colour", help="Background colour", default="white")
     parser.add_argument("--text_colour", help="Text colour", default="black")
     parser.add_argument("--vertical_label_field", help="Vertical label field in output PNG", default="INSDC")
 
     # Other Arguments
-    parser.add_argument("--min_fraction", help="Minimum Fraction of scaffolds to include", default=0.01)
-    parser.add_argument("--max_fraction", help="Maximum Fraction of scaffolds to include", default=0.97)
+    parser.add_argument("--min_fraction", help="Minimum Fraction of scaffolds to include", default=0.01, type=float)
+    parser.add_argument("--max_fraction", help="Maximum Fraction of scaffolds to include", default=0.97, type=float)
 
     parser.add_argument("-v", "--versions", help="Return the version of the tool", action="version", version="%(prog)s: 1.0.0")
 

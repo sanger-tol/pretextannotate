@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 import logging
 from pathlib import Path
@@ -79,7 +78,7 @@ def add_mbp_scale(draw, font, left, top, w, h, total_length, font_size, text_col
                 tick_interval = 1000
             case _:
                 logger.error("[Add Mbp Scale] Tick interval larger than 500 MBP")
-                sys.exit("Tick interval larger than 500 MBP")
+                raise ValueError("Tick interval larger than 500 MBP")
 
         logger.info(
             f"[Mbp Scale] Adjusted interval from original to {tick_interval} Mbp to prevent label crowding"
@@ -134,12 +133,12 @@ def add_mbp_scale(draw, font, left, top, w, h, total_length, font_size, text_col
     # Draw all tick marks and labels
     current_pos = 0
     tick_count = 0
+    tick_height = font_size // 4
 
     while current_pos <= total_length:
         x_pos = left + (current_pos / total_length) * w
 
         # Draw tick mark
-        tick_height = font_size // 4
         draw.line([(x_pos, scale_y), (x_pos, scale_y + tick_height)], fill=text_colour, width=2)
 
         # Add label (every other tick for readability if interval is small)
@@ -264,7 +263,7 @@ def draw_top_labels_with_positions(draw, font, sorted_chroms, total, left, font_
     drawn_boxes = []
     for i, c in enumerate(sorted_chroms):
         label = str(c["molecule"])
-        block: int = (c["length"] / total) * width
+        block: float = (c["length"] / total) * width
         bbox = font.getbbox(label)
         tw: float = bbox[2] - bbox[0]
 
