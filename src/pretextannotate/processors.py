@@ -266,12 +266,12 @@ def draw_top_labels_with_positions(draw, font, sorted_chroms, total, left, font_
         label = str(c["molecule"])
         block: int = (c["length"] / total) * width
         bbox = font.getbbox(label)
-        tw: int = bbox[2] - bbox[0]
+        tw: float = bbox[2] - bbox[0]
 
         ok: bool = fits_block(tw, block, max_fraction)
         if ok:
-            x_left: int = left + x_positions[i] - tw / 2
-            x_right: int = x_left + tw
+            x_left: float = left + x_positions[i] - tw / 2
+            x_right: float = x_left + tw
             if overlaps_prev(x_left, x_right, drawn_boxes):
                 ok = False
 
@@ -280,7 +280,7 @@ def draw_top_labels_with_positions(draw, font, sorted_chroms, total, left, font_
             draw.text((x_left, y), label, font=font, fill=text_colour)
             drawn_boxes.append((x_left, x_right))
         else:
-            x: int = left + x_positions[i] - dot_width / 2
+            x: float = left + x_positions[i] - dot_width / 2
             y = int(font_size * 0.4)
             draw.text((x, y), ".", font=font, fill=text_colour)
 
@@ -294,28 +294,28 @@ def draw_left_labels(draw, font, sorted_chroms, total, left, top, height, font_s
         lbl = str(c.get(vertical_label_field) or c.get("molecule") or "?")
 
         lb = font.getbbox(lbl)
-        th = lb[3] - lb[1]
-        tw = lb[2] - lb[0]
+        th: int = lb[3] - lb[1]
+        tw: int = lb[2] - lb[0]
 
-        block_h = (c["length"] / total) * height
-        centre_y = top + y_positions[i]
-        y_top = int(centre_y - th / 2 - font_size * 0.4)
-        y_bot = y_top + th
+        block_h: int = int((c["length"] / total) * height)
+        centre_y: int = top + y_positions[i]
+        y_top: int = int(centre_y - th / 2 - font_size * 0.4)
+        y_bot: int = y_top + th
 
         ok = block_h >= th * max_fraction
         if ok and overlaps_prev_y(y_top, y_bot, drawn_y_boxes, pad=5):
             ok = False
 
         if ok:
-            x: int = left - tw - int(font_size * 0.4)
+            x: float = left - tw - int(font_size * 0.4)
             draw.text((x, y_top), lbl, font=font, fill=text_colour)
             drawn_y_boxes.append((y_top, y_bot))
         else:
             dot_bbox = font.getbbox(".")
             dot_top: int = dot_bbox[1]
             dot_height: int = dot_bbox[3] - dot_bbox[1]
-            x: int = left - dot_width - int(font_size * 0.4)
-            y_dot = int(centre_y - (dot_height / 2) - dot_top)
+            x: float = left - dot_width - int(font_size * 0.4)
+            y_dot: int = int(centre_y - (dot_height / 2) - dot_top)
             draw.text((x, y_dot), ".", font=font, fill=text_colour)
 
 def label_pretext_map(args) -> tuple[Path, Path, Path]:
