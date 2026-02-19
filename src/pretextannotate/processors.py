@@ -399,7 +399,7 @@ def label_pretext_map(args) -> tuple[Path, Path, Path]:
         logger.info(f"[Pretext Annotation] Sizes file provided: {args.sizes}")
         chroms = parse_sizes(args.sizes)
     else:
-        logger.info(f"[Pretext Annotation] Sizes file not provided, falling back to NCBI api")
+        logger.info("[Pretext Annotation] Sizes file not provided, falling back to NCBI api")
         chroms: list[dict[str, str]] = get_chromosomes(args.prefix, context)
 
     if not chroms:
