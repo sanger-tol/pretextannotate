@@ -22,6 +22,7 @@ def parse_args():
     parser.add_argument("--pretext_file", help="Input pretext PNG file", type=pathlib.Path)
     parser.add_argument("--prefix", help="Prefix for the output file", default="default")
     parser.add_argument("--context_dict", help="Context")
+    parser.add_argument("--sizes", help="Sizes file describing the input genome", type=pathlib.Path)
     parser.add_argument("--output", help="Output PNG file", default="./")
 
     # Font Arguments
@@ -40,7 +41,7 @@ def parse_args():
     parser.add_argument("--min_fraction", help="Minimum Fraction of scaffolds to include", default=0.01, type=float)
     parser.add_argument("--max_fraction", help="Maximum Fraction of scaffolds to include", default=0.97, type=float)
 
-    parser.add_argument("-v", "--versions", help="Return the version of the tool", action="version", version="%(prog)s: 1.0.0")
+    parser.add_argument("-v", "--versions", help="Return the version of the tool", action="version", version="%(prog)s: 1.0.1")
 
     return parser.parse_args()
 
