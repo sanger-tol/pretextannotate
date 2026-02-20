@@ -1,0 +1,22 @@
+name: Lint
+on:
+    push:
+        branches: [main, dev, patch]
+    pull_request:
+    release:
+        types: [published]
+
+jobs:
+    lint:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check out code
+              uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+              with:
+                  fetch-depth: 0
+
+            - name: Lint with Ruff
+              uses: astral-sh/ruff-action@v3
+              with:
+                  src: "./src"
+                  version: "0.11.11"
