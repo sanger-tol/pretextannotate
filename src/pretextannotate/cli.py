@@ -49,10 +49,10 @@ def check_args(args):
     if context.get("accession"):
         logger.info(f"[check_args] Accession: {context['accession']}")
     else:
-        raise argparse.ArgumentTypeError(f"[check_args] ACCESSION IS NEEDED")
+        raise argparse.ArgumentTypeError("[check_args] ACCESSION IS NEEDED")
 
     if args.context_dict is None and args.sizes is None:
-        raise argparse.ArgumentTypeError(f"[check_args] Either context dict or sizes file is required")
+        raise argparse.ArgumentTypeError("[check_args] Either context dict or sizes file is required")
 
     return args
 
