@@ -23,20 +23,23 @@ def get_chromosomes(prefix: str, context: dict) -> list[dict[str, str]]:
     """
     Get chromosome data for assembly
     """
-    for key in ("prim_accession", "hap1_accession"):
-        if key in context:
-            return extract_chromosomes_only(context[key])
+    if "accession" in context:
+        return extract_chromosomes_only(context["accession"])
 
     logger.critical(f"[Pretext Annotation] No accession in context for {prefix}")
     return []
 
-def get_raw_length(context: dict, chroms: list[dict]) -> int:
+def get_raw_length(sizes, context: dict, chroms: list[dict]) -> int:
     """
     Get raw length of genome
     """
-    raw_length = context.get("genome_length_unrounded") or context.get("hap1_genome_length_unrounded")
+    raw_length = context.get("genome_length")
     if raw_length is not None:
         return raw_length
+
+    if sizes:
+        logger.critical("[Pretext Annotation] Using sizes file for lengths")
+        return sum(chrom["length"] for chrom in chroms) * 1e6
 
     logger.critical("""
     [Pretext Annotation] GENOME LENGTH NOT PROVIDED ON CLI
@@ -407,7 +410,7 @@ def label_pretext_map(args) -> tuple[Path, Path, Path]:
 
     sorted_chroms = compute_chromosomes(args.prefix, chroms, args.exclude_molecules, args.min_fraction)
     chrom_count = len(sorted_chroms)
-    raw_length = get_raw_length(context, sorted_chroms)
+    raw_length = get_raw_length(args.sizes, context, sorted_chroms)
     if raw_length == 0:
         raise ValueError(f"NO LENGTHS OF MOLECULE FOUND IN CHROM_LIST: {sorted_chroms}")
     total_length: float = ( raw_length / 1e6 )
