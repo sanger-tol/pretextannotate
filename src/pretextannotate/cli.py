@@ -29,30 +29,11 @@ def file_validator(in_file):
 
 def check_args(args):
     """
-    More complex arg validation
-    - context_dict and sizes are semi-mutually exclusive
-        - if context_dict["genome_length"] and sizes exist, remove genome_length from the context_dict
-        - if context_dict["accession"] does not exist then raise an error
-        - if not context_dict or sizes exist, raise an error
+    Expandable function to validate arguments and/or give some info
     """
-    context = json.loads(args.context_dict)
 
-    if context and args.sizes:
-        if args.sizes and context.get("genome_length"):
-            data = context.get("genome_length")
-            context.pop("genome_length")
-
-            args.__dict__.update({"context_dict": f"{context}"})
-
-            logger.error(f"[check_args] Can't provide genome length info ({data}) in --context AND provide a --sizes file! - This has been removed!")
-
-    if context.get("accession"):
-        logger.info(f"[check_args] Accession: {context['accession']}")
-    else:
-        raise argparse.ArgumentTypeError("[check_args] ACCESSION IS NEEDED")
-
-    if args.context_dict is None and args.sizes is None:
-        raise argparse.ArgumentTypeError("[check_args] Either context dict or sizes file is required")
+    if args.sizes is None:
+        logger.info("[check_args] Without the sizes file, this will fallback to NCBI API using the Accession.")
 
     return args
 
@@ -63,9 +44,6 @@ def parse_args():
     parser.add_argument("-f", "--pretext_file", help="Input pretext PNG file", type=file_validator, required=True)
     parser.add_argument("-p", "--prefix", help="Prefix for the output file", default="default")
     parser.add_argument("-o", "--output", help="Output PNG file", default="./")
-
-    ## Mutually exclusive
-    parser.add_argument("-c", "--context_dict", help="Context")
     parser.add_argument("-s", "--sizes", help="Sizes file describing the input genome", type=file_validator)
 
     # Font Arguments
@@ -82,10 +60,11 @@ def parse_args():
     parser.add_argument("--vertical_label_field", help="Vertical label field in output PNG", default="INSDC")
 
     # Other Arguments
+    parser.add_argument("--gca_accession", help="The GCA_Accession of the sample of interest - optional", type=str)
     parser.add_argument("--min_fraction", help="Minimum Fraction of scaffolds to include", default=0.01, type=float)
     parser.add_argument("--max_fraction", help="Maximum Fraction of scaffolds to include", default=0.97, type=float)
 
-    parser.add_argument("-v", "--versions", help="Return the version of the tool", action="version", version="%(prog)s: 1.1.0")
+    parser.add_argument("-v", "--versions", help="Return the version of the tool", action="version", version="%(prog)s: 1.1.1")
 
     return check_args(parser.parse_args())
 
