@@ -36,10 +36,15 @@ pretextannotate \\
     --pretext_file src/tests/ilDryDodo1.1_normal_FullMap.png \\
     --output ./ \\
     --prefix HELLO \\
-    --context_dict '{"accession": "GCA_965178025.1"}'
+    --gca_accession GCA_965178025.1
+    
+    
+pretextannotate \\
+    --pretext_file src/tests/ilDryDodo1.1_normal_FullMap.png \\
+    --output ./ \\
+    --prefix HELLO \\
+    --sizes GCA_965178025.1.sizes
 ```
-
-Context is a dictionary input containing the type of accession and the GCA accession number of the specific assembly.
 
 ## Expected output
 
@@ -64,8 +69,7 @@ There will also be a pretextannotation.log file containing, in this case:
 2026-02-12 12:55:47,783 [INFO] [Pretext Annotation] Converted to TIFF & GIF → .//HELLO_annotated_pretext.tif, .//HELLO_annotated_pretext.gif
 ```
 
-## ToDo:
+## Future ToDo's:
 - Graphs to right side
     - Telomere, gap, coverage, repeats, GC?
 - Tests
-- Workflow for PyPi Push
