@@ -63,7 +63,7 @@ def parse_args():
     parser.add_argument("--min_fraction", help="Minimum Fraction of scaffolds to include", default=0.01, type=float)
     parser.add_argument("--max_fraction", help="Maximum Fraction of scaffolds to include", default=0.97, type=float)
 
-    parser.add_argument("-v", "--versions", help="Return the version of the tool", action="version", version="%(prog)s: 1.1.1")
+    parser.add_argument("-v", "--version", help="Return the version of the tool", action="version", version="%(prog)s: 1.1.2")
 
     return check_args(parser.parse_args())
 
@@ -73,6 +73,6 @@ def main():
 
     args = parse_args()
 
-    logger.info(f"[Pretext Annotation] PretextSnapshot: {args.pretext_file} | WITH | context_dict: {args.context_dict}")
+    logger.info(f"[Pretext Annotation] PretextSnapshot: {args.pretext_file}")
 
     label_pretext_map(args)
