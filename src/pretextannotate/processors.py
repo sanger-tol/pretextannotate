@@ -1,5 +1,4 @@
 import os
-import json
 import logging
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
@@ -19,30 +18,20 @@ def parse_sizes(sizes_file: Path) -> list[dict]:
     return chrom_data
 
 
-def get_chromosomes(prefix: str, context: dict) -> list[dict[str, str]]:
-    """
-    Get chromosome data for assembly
-    """
-    for key in ("prim_accession", "hap1_accession"):
-        if key in context:
-            return extract_chromosomes_only(context[key])
-
-    logger.critical(f"[Pretext Annotation] No accession in context for {prefix}")
-    return []
-
-def get_raw_length(context: dict, chroms: list[dict]) -> int:
+def get_raw_length(sizes, chroms: list[dict]) -> int:
     """
     Get raw length of genome
     """
-    raw_length = context.get("genome_length_unrounded") or context.get("hap1_genome_length_unrounded")
-    if raw_length is not None:
-        return raw_length
 
-    logger.critical("""
-    [Pretext Annotation] GENOME LENGTH NOT PROVIDED ON CLI
-        - Keep in mind that the fall back method sums the lengths of chromosomes from the API
-        - THIS SUM DOES NOT INCLUDE unlocs, if there are many then the plot may look off.
-    """)
+    if sizes:
+        logger.critical("[Pretext Annotation] Using sizes file for lengths")
+    else:
+        logger.critical("""
+        [Pretext Annotation] GENOME LENGTH NOT PROVIDED ON CLI
+            - Keep in mind that the fall back method sums the lengths of chromosomes from the API
+            - THIS SUM DOES NOT INCLUDE unlocs, if there are many then the plot may look off.
+        """)
+
     return sum(chrom["length"] for chrom in chroms) * 1e6
 
 def fits_block(tw: float, block_width: float, fraction: float) -> bool:
@@ -238,16 +227,6 @@ def convert_png_to_tif_and_gif(png_path: str, dpi=(300, 300), max_width=None):
     logger.info(f"[Pretext Annotation] Converted {png_path} → {tif_path}, {gif_path}")
     return tif_path, gif_path
 
-def parse_context(context_dict_str: str) -> dict:
-    """
-    Attempt to parse the context dictionary string
-    """
-    try:
-        return json.loads(context_dict_str)
-    except Exception as e:
-        logger.error(f"[Pretext Annotation] Failed to parse context_dict: {e}")
-        return {}
-
 def compute_chromosomes(prefix: str, chroms: list[dict], exclude: list[str], min_fraction: float) -> list[dict]:
     """
     Figure out the chromosomes we want names in the image,
@@ -389,8 +368,6 @@ def label_pretext_map(args) -> tuple[Path, Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file_path: str = str(output_dir / f"{args.prefix}_annotated_pretext.png")
 
-    context = parse_context(args.context_dict)
-
     logger.info(f"[Pretext Annotation] Input Snapshot Image is {args.pretext_file}")
     logger.info(f"[Pretext Annotation] Output will be saved at {output_file_path}")
     logger.info("[Pretext Annotation] Starting Pretext Annotation Process")
@@ -400,14 +377,14 @@ def label_pretext_map(args) -> tuple[Path, Path, Path]:
         chroms = parse_sizes(args.sizes)
     else:
         logger.info("[Pretext Annotation] Sizes file not provided, falling back to NCBI api")
-        chroms: list[dict[str, str]] = get_chromosomes(args.prefix, context)
+        chroms: list[dict[str, str]] = extract_chromosomes_only(args.accession)
 
     if not chroms:
         raise ValueError(f"NO CHROMOSOMES FOUND: {chroms}")
 
     sorted_chroms = compute_chromosomes(args.prefix, chroms, args.exclude_molecules, args.min_fraction)
     chrom_count = len(sorted_chroms)
-    raw_length = get_raw_length(context, sorted_chroms)
+    raw_length = get_raw_length(args.sizes, sorted_chroms)
     if raw_length == 0:
         raise ValueError(f"NO LENGTHS OF MOLECULE FOUND IN CHROM_LIST: {sorted_chroms}")
     total_length: float = ( raw_length / 1e6 )
