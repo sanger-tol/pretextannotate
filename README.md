@@ -43,8 +43,10 @@ pretextannotate \\
     --pretext_file src/tests/ilDryDodo1.1_normal_FullMap.png \\
     --output ./ \\
     --prefix HELLO \\
-    --sizes GCA_965178025.1.sizes
+    --index GCA_965178025.1.sizes
 ```
+
+As of version `1.1.3`, `--sizes` has been replaces with `--index` to allow for `genome`, `sizes` and `fai` file types.
 
 ## Expected output
 
