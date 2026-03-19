@@ -1,19 +1,59 @@
-import os
 import logging
+import os
 from pathlib import Path
+
 from PIL import Image, ImageDraw, ImageFont
+
 from pretextannotate.chromosome_extraction import extract_chromosomes_only
 
-logger = logging.getLogger('pretextannotation_logger')
+logger = logging.getLogger("pretextannotation_logger")
+
+
+def parse_fai(fai_file: Path) -> list[dict]:
+    chrom_counter, chrom_data = int(), list()
+
+    with open(fai_file, "r") as in_file:
+        for line in in_file:
+            if len(line.split("\t")) == 5:
+                # SAMTOOLS FAI format is
+                # name\tlength\toffset\tlinebases\tlinewidth
+                # but we don't need the last 3 columns
+                molecular_name, molecule_length, _, _, _ = line.split("\t")
+                chrom_counter += 1
+                chrom_data.append(
+                    {
+                        "INSDC": molecular_name,
+                        "length": int(molecule_length) / 1e6,
+                        "molecule": chrom_counter,
+                    }
+                )
+            else:
+                raise ValueError(
+                    f"Invalid line in FAI file: {line}, expected 5 tab-separated fields not {len(line.split('\t'))}"
+                )
+
+    return chrom_data
+
 
 def parse_sizes(sizes_file: Path) -> list[dict]:
     chrom_counter, chrom_data = int(), list()
 
-    with open(sizes_file, 'r') as in_file:
+    with open(sizes_file, "r") as in_file:
         for line in in_file:
-            molecular_name, molecule_length = line.split()
-            chrom_counter += 1
-            chrom_data.append({"INSDC": molecular_name, "length": int(molecule_length) / 1e6, "molecule": chrom_counter})
+            if len(line.split()) == 2:
+                molecular_name, molecule_length = line.split()
+                chrom_counter += 1
+                chrom_data.append(
+                    {
+                        "INSDC": molecular_name,
+                        "length": int(molecule_length) / 1e6,
+                        "molecule": chrom_counter,
+                    }
+                )
+            else:
+                raise ValueError(
+                    f"Invalid line in Index file: {line}, expected 2 tab-separated fields not {len(line.split('\t'))}"
+                )
 
     return chrom_data
 
@@ -34,11 +74,14 @@ def get_raw_length(sizes, chroms: list[dict]) -> int:
 
     return sum(chrom["length"] for chrom in chroms) * 1e6
 
+
 def fits_block(tw: float, block_width: float, fraction: float) -> bool:
     return tw <= block_width * fraction
 
+
 def overlaps_prev(left: int, right: int, boxes, pad=0) -> bool:
     return any(left - pad < br and right + pad > bl for bl, br in boxes)
+
 
 def calculate_tick_interval(total_length: int) -> int:
     """
@@ -59,7 +102,8 @@ def calculate_tick_interval(total_length: int) -> int:
             tick_interval = 500  # Every 500 Mbp for very large genomes
     return tick_interval
 
-def calculate_tick_interval_spacing(tick_interval: int, avg_space:int, min_space: int) -> int:
+
+def calculate_tick_interval_spacing(tick_interval: int, avg_space: int, min_space: int) -> int:
     """
     Recalculate the tick interval if spacing is too small between labels
     """
@@ -83,6 +127,7 @@ def calculate_tick_interval_spacing(tick_interval: int, avg_space:int, min_space
 
     return tick_interval
 
+
 def calculate_last_labeled_tick(font, left, w, total_length, tick_interval):
     """
     Pre-calculate the last tick that would get a label
@@ -104,6 +149,7 @@ def calculate_last_labeled_tick(font, left, w, total_length, tick_interval):
 
     return last_labeled_tick
 
+
 def add_mbp_scale(draw, font, left, top, w, h, total_length, font_size, text_colour):
     """Add Mbp scale to bottom of pretext map with smart positioning"""
 
@@ -119,7 +165,9 @@ def add_mbp_scale(draw, font, left, top, w, h, total_length, font_size, text_col
     typical_label_width: int = sample_bbox[2] - sample_bbox[0]
     min_space_needed: int = typical_label_width * 1.5  # 50% padding between labels
 
-    tick_interval = calculate_tick_interval_spacing(first_tick_interval, avg_space_per_label, min_space_needed)
+    tick_interval = calculate_tick_interval_spacing(
+        first_tick_interval, avg_space_per_label, min_space_needed
+    )
 
     logger.info(
         f"[Mbp Scale] Adjusted interval from {first_tick_interval} to {tick_interval} Mbp to prevent label crowding"
@@ -199,6 +247,7 @@ def add_mbp_scale(draw, font, left, top, w, h, total_length, font_size, text_col
         fill=text_colour,
     )
 
+
 def convert_png_to_tif_and_gif(png_path: str, dpi=(300, 300), max_width=None):
     """
     Given /…/Fig_N.png, writes:
@@ -227,20 +276,26 @@ def convert_png_to_tif_and_gif(png_path: str, dpi=(300, 300), max_width=None):
     logger.info(f"[Pretext Annotation] Converted {png_path} → {tif_path}, {gif_path}")
     return tif_path, gif_path
 
-def compute_chromosomes(prefix: str, chroms: list[dict], exclude: list[str], min_fraction: float) -> list[dict]:
+
+def compute_chromosomes(
+    prefix: str, chroms: list[dict], exclude: list[str], min_fraction: float
+) -> list[dict]:
     """
     Figure out the chromosomes we want names in the image,
     this is based off of size of the molecule as well as whether the user wants to exclude certain molecule.
     """
     max_length = max(c["length"] for c in chroms) if chroms else 0
     filtered = [
-        c for c in chroms
-        if c["molecule"] not in (exclude or [])
-        and c["length"] >= min_fraction * max_length
+        c
+        for c in chroms
+        if c["molecule"] not in (exclude or []) and c["length"] >= min_fraction * max_length
     ]
-    logger.info(f"[compute chromosomes] {len(filtered)} chromosomes to be labelled, removed {len(chroms) - len(filtered)} molecules")
+    logger.info(
+        f"[compute chromosomes] {len(filtered)} chromosomes to be labelled, removed {len(chroms) - len(filtered)} molecules"
+    )
 
     return sorted(filtered, key=lambda x: x["length"], reverse=True)
+
 
 def choose_font_size(base_size: int, chrom_count: int, max_font_size: int = 90) -> int:
     """
@@ -255,6 +310,7 @@ def choose_font_size(base_size: int, chrom_count: int, max_font_size: int = 90) 
             return min(max_font_size, base_size + 10)
         case _:
             return min(max_font_size, base_size + 20)
+
 
 def build_canvas(image_path: str, font_path: str, font_size: int, background_colour: str):
     """
@@ -274,12 +330,15 @@ def build_canvas(image_path: str, font_path: str, font_size: int, background_col
     draw = ImageDraw.Draw(canvas)
     return canvas, draw, font, width, height, left, top
 
-def compute_positions(sorted_chroms: list[dict], width: int, height: int, total_length: float | None):
+
+def compute_positions(
+    sorted_chroms: list[dict], width: int, height: int, total_length: float | None
+):
     """
     Compute positions of the chromosome blocks on the pretext PNG
     This will be used to draw labels for the chromosome blocks
     """
-    acc,acc_h,  x_positions, y_positions = 0, 0, [], []
+    acc, acc_h, x_positions, y_positions = 0, 0, [], []
     for c in sorted_chroms:
         block = (c["length"] / total_length) * width
         block_h = (c["length"] / total_length) * height
@@ -288,11 +347,26 @@ def compute_positions(sorted_chroms: list[dict], width: int, height: int, total_
         acc += block
         acc_h += block_h
 
-        logger.info(f"[compute positions] For {c['INSDC']} ({c['molecule']}) | X position = {x_positions[-1]},\tY position = {y_positions[-1]}")
+        logger.info(
+            f"[compute positions] For {c['INSDC']} ({c['molecule']}) | X position = {x_positions[-1]},\tY position = {y_positions[-1]}"
+        )
 
     return x_positions, y_positions
 
-def draw_top_labels_with_positions(draw, font, sorted_chroms, total, left, font_size, text_colour, dot_width, max_fraction, x_positions, width):
+
+def draw_top_labels_with_positions(
+    draw,
+    font,
+    sorted_chroms,
+    total,
+    left,
+    font_size,
+    text_colour,
+    dot_width,
+    max_fraction,
+    x_positions,
+    width,
+):
     """
     Draw the labels for the top of the image.
     Using the chromosome positions to set top labels (molecule number)
@@ -321,10 +395,26 @@ def draw_top_labels_with_positions(draw, font, sorted_chroms, total, left, font_
             x_dot = left + x_positions[i] - dot_width / 2
             draw.text((x_dot, y_dot), ".", font=font, fill=text_colour)
 
+
 def overlaps_prev_y(top, bottom, boxes, padding=0):
     return any(top - padding < bb and bottom + padding > tt for tt, bb in boxes)
 
-def draw_left_labels(draw, font, sorted_chroms, total, left, top, height, font_size, text_colour, dot_width, vertical_label_field, y_positions, max_fraction):
+
+def draw_left_labels(
+    draw,
+    font,
+    sorted_chroms,
+    total,
+    left,
+    top,
+    height,
+    font_size,
+    text_colour,
+    dot_width,
+    vertical_label_field,
+    y_positions,
+    max_fraction,
+):
     """
     Draw the labels for the left of the image.
     Using the chromosome positions to set Y labels (molecule name)
@@ -360,6 +450,7 @@ def draw_left_labels(draw, font, sorted_chroms, total, left, top, height, font_s
             y_dot = int(centre_y - (dot_height / 2) - dot_top)
             draw.text((x_dot, y_dot), ".", font=font, fill=text_colour)
 
+
 def label_pretext_map(args) -> tuple[Path, Path, Path]:
     """
     Main function for adding labels to a pretextmap
@@ -372,34 +463,71 @@ def label_pretext_map(args) -> tuple[Path, Path, Path]:
     logger.info(f"[Pretext Annotation] Output will be saved at {output_file_path}")
     logger.info("[Pretext Annotation] Starting Pretext Annotation Process")
 
-    if args.sizes:
-        logger.info(f"[Pretext Annotation] Sizes file provided: {args.sizes}")
-        chroms = parse_sizes(args.sizes)
+    suffix: str | None = args.index.suffix if args.index else None
+    logger.info(f"""[Pretext Annotation] Index is {suffix if suffix else "unknown"} file provided: {
+        args.index if args.index else "Falling back to NCBI api"
+    }
+    """)
+
+    if args.index and suffix in [".sizes", ".genome"]:
+        chroms = parse_sizes(args.index)
+    elif args.index and suffix == ".fai":
+        chroms = parse_fai(args.index)
     else:
-        logger.info("[Pretext Annotation] Sizes file not provided, falling back to NCBI api")
         chroms: list[dict[str, str]] = extract_chromosomes_only(args.accession)
 
     if not chroms:
         raise ValueError(f"NO CHROMOSOMES FOUND: {chroms}")
 
-    sorted_chroms = compute_chromosomes(args.prefix, chroms, args.exclude_molecules, args.min_fraction)
+    sorted_chroms = compute_chromosomes(
+        args.prefix, chroms, args.exclude_molecules, args.min_fraction
+    )
     chrom_count = len(sorted_chroms)
-    raw_length = get_raw_length(args.sizes, sorted_chroms)
+    raw_length = get_raw_length(args.index, sorted_chroms)
     if raw_length == 0:
         raise ValueError(f"NO LENGTHS OF MOLECULE FOUND IN CHROM_LIST: {sorted_chroms}")
-    total_length: float = ( raw_length / 1e6 )
+    total_length: float = raw_length / 1e6
     logger.debug(f"[Pretext Annotation] total_length={total_length} Mb; chromosomes={chrom_count}")
 
-
     font_size = choose_font_size(args.font_size, chrom_count)
-    logger.info(f"[Pretext Annotation] Adjusted font size: {font_size} for {chrom_count} chromosomes")
+    logger.info(
+        f"[Pretext Annotation] Adjusted font size: {font_size} for {chrom_count} chromosomes"
+    )
 
-    canvas, draw, font, width, height, left, top = build_canvas(args.pretext_file, args.font, font_size, args.background_colour)
+    canvas, draw, font, width, height, left, top = build_canvas(
+        args.pretext_file, args.font, font_size, args.background_colour
+    )
     x_positions, y_positions = compute_positions(sorted_chroms, width, height, total_length)
     dot_width: int = font.getbbox(".")[2] - font.getbbox(".")[0]
 
-    draw_top_labels_with_positions(draw, font, sorted_chroms, total_length, left, font_size, args.text_colour, dot_width, args.max_fraction, x_positions, width)
-    draw_left_labels(draw, font, sorted_chroms, total_length, left, top, height, font_size, args.text_colour, dot_width, args.vertical_label_field, y_positions, args.max_fraction)
+    draw_top_labels_with_positions(
+        draw,
+        font,
+        sorted_chroms,
+        total_length,
+        left,
+        font_size,
+        args.text_colour,
+        dot_width,
+        args.max_fraction,
+        x_positions,
+        width,
+    )
+    draw_left_labels(
+        draw,
+        font,
+        sorted_chroms,
+        total_length,
+        left,
+        top,
+        height,
+        font_size,
+        args.text_colour,
+        dot_width,
+        args.vertical_label_field,
+        y_positions,
+        args.max_fraction,
+    )
     add_mbp_scale(draw, font, left, top, width, height, total_length, font_size, args.text_colour)
 
     canvas.save(output_file_path)
